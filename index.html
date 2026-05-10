@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RACI Matrix Builder for Cross-Functional Projects</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #1a1f2c;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #2f5af0;
+    --accent-soft: #eaf0ff;
+    --r: #dc2626;     /* Responsible - red */
+    --a: #2563eb;     /* Accountable - blue */
+    --c: #f59e0b;     /* Consulted - amber */
+    --i: #10b981;     /* Informed - green */
+    --warn-bg: #fff7ed;
+    --warn-border: #fed7aa;
+    --warn-ink: #9a3412;
+    --err-bg: #fef2f2;
+    --err-border: #fecaca;
+    --err-ink: #991b1b;
+    --ok-bg: #ecfdf5;
+    --ok-border: #a7f3d0;
+    --ok-ink: #065f46;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.45;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 20px 28px;
+  }
+  header h1 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px 28px 80px;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .toolbar .spacer { flex: 1; }
+  button, .btn {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  button:hover, .btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  button.primary:hover {
+    background: #2444c5;
+    border-color: #2444c5;
+    color: white;
+  }
+  button.ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--muted);
+    padding: 6px 8px;
+  }
+  button.ghost:hover { color: var(--err-ink); border-color: transparent; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-header .hint {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .matrix-wrap { overflow-x: auto; }
+  table.raci {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 600px;
+  }
+  table.raci th, table.raci td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    text-align: left;
+    vertical-align: middle;
+    font-size: 13px;
+  }
+  table.raci th:last-child, table.raci td:last-child {
+    border-right: none;
+  }
+  table.raci thead th {
+    background: #fafbfc;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  table.raci th.task-col, table.raci td.task-col {
+    width: 280px;
+    min-width: 220px;
+    background: #fafbfc;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+  table.raci thead th.task-col { z-index: 3; }
+  table.raci th.person-col {
+    text-align: center;
+    min-width: 110px;
+  }
+  table.raci td.cell {
+    text-align: center;
+    padding: 6px;
+  }
+  .task-input, .person-input {
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .task-input:hover, .person-input:hover {
+    border-color: var(--line);
+  }
+  .task-input:focus, .person-input:focus {
+    border-color: var(--accent);
+    outline: none;
+    background: white;
+  }
+  .person-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .person-header .person-input {
+    text-align: center;
+    font-weight: 600;
+  }
+  .row-controls, .col-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .raci-picker {
+    display: inline-flex;
+    gap: 3px;
+    align-items: center;
+  }
+  .raci-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: white;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.1s ease;
+  }
+  .raci-btn:hover {
+    transform: scale(1.08);
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+  .raci-btn.active.r { background: var(--r); border-color: var(--r); color: white; }
+  .raci-btn.active.a { background: var(--a); border-color: var(--a); color: white; }
+  .raci-btn.active.c { background: var(--c); border-color: var(--c); color: white; }
+  .raci-btn.active.i { background: var(--i); border-color: var(--i); color: white; }
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 12px 18px;
+    background: #fafbfc;
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ld-r { background: var(--r); }
+  .ld-a { background: var(--a); }
+  .ld-c { background: var(--c); }
+  .ld-i { background: var(--i); }
+  .alerts { display: flex; flex-direction: column; gap: 8px; padding: 16px 18px; }
+  .alerts:empty { display: none; }
+  .alert {
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 13px;
+    border: 1px solid;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .alert.error { background: var(--err-bg); border-color: var(--err-border); color: var(--err-ink); }
+  .alert.warn  { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-ink); }
+  .alert.ok    { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok-ink); }
+  .alert .icon {
+    font-weight: 700;
+    flex-shrink: 0;
+    width: 18px;
+    text-align: center;
+  }
+  .alert .body strong { display: block; margin-bottom: 2px; }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    padding: 16px 18px;
+  }
+  .stat {
+    background: #fafbfc;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat .value { font-size: 22px; font-weight: 700; margin-top: 2px; }
+  .stat .sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 12px;
+  }
+
+  @media print {
+    header, .toolbar, .panel-header button, .row-controls, .col-controls, footer { display: none !important; }
+    body { background: white; }
+    .panel { border: none; margin: 0; }
+    .raci-btn { display: none; }
+    .raci-btn.active { display: inline-flex; }
+    table.raci th, table.raci td { border-color: #ccc; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>RACI Matrix Builder for Cross-Functional Projects</h1>
+  <p>Define who is Responsible, Accountable, Consulted, and Informed for each task — and catch governance gaps before they become problems.</p>
+</header>
+
+<main>
+  <div class="toolbar">
+    <button class="primary" onclick="addTask()">+ Add Task</button>
+    <button onclick="addPerson()">+ Add Role / Person</button>
+    <button onclick="loadSample()">Load Sample Project</button>
+    <button onclick="clearAll()">Clear All</button>
+    <span class="spacer"></span>
+    <button onclick="exportCSV()">Export CSV</button>
+    <button onclick="exportJSON()">Export JSON</button>
+    <button onclick="window.print()">Print / PDF</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      Matrix
+      <span class="hint">Click a letter cell to assign a role. Click again to clear.</span>
+    </div>
+    <div class="legend">
+      <span class="legend-item"><span class="legend-dot ld-r">R</span> Responsible — does the work</span>
+      <span class="legend-item"><span class="legend-dot ld-a">A</span> Accountable — owns the outcome (exactly one per task)</span>
+      <span class="legend-item"><span class="legend-dot ld-c">C</span> Consulted — provides input</span>
+      <span class="legend-item"><span class="legend-dot ld-i">I</span> Informed — kept in the loop</span>
+    </div>
+    <div class="matrix-wrap">
+      <table class="raci" id="matrix"></table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">Validation & Warnings <span id="alertsCount" class="hint"></span></div>
+    <div class="alerts" id="alerts"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">Summary</div>
+    <div class="summary-grid" id="summary"></div>
+  </div>
+</main>
+
+<footer>RACI Matrix Builder · Single-file tool · No data leaves your browser</footer>
+
+<script>
+  // ---------- State ----------
+  const ROLES = ["R", "A", "C", "I"];
+  const ROLE_NAMES = { R: "Responsible", A: "Accountable", C: "Consulted", I: "Informed" };
+
+  let state = {
+    tasks: [],   // [{id, name}]
+    people: [],  // [{id, name}]
+    cells: {}    // { "taskId|personId": "R" | "A" | "C" | "I" | null }
+  };
+
+  let nextId = 1;
+  const id = () => "x" + (nextId++);
+
+  // ---------- Mutations ----------
+  function addTask(name = "") {
+    state.tasks.push({ id: id(), name });
+    render();
+  }
+  function addPerson(name = "") {
+    state.people.push({ id: id(), name });
+    render();
+  }
+  function removeTask(taskId) {
+    state.tasks = state.tasks.filter(t => t.id !== taskId);
+    Object.keys(state.cells).forEach(k => { if (k.startsWith(taskId + "|")) delete state.cells[k]; });
+    render();
+  }
+  function removePerson(personId) {
+    state.people = state.people.filter(p => p.id !== personId);
+    Object.keys(state.cells).forEach(k => { if (k.endsWith("|" + personId)) delete state.cells[k]; });
+    render();
+  }
+  function setCell(taskId, personId, role) {
+    const key = taskId + "|" + personId;
+    if (state.cells[key] === role) {
+      delete state.cells[key];
+    } else {
+      state.cells[key] = role;
+    }
+    render();
+  }
+  function setTaskName(taskId, name) {
+    const t = state.tasks.find(t => t.id === taskId);
+    if (t) t.name = name;
+    persist();
+  }
+  function setPersonName(personId, name) {
+    const p = state.people.find(p => p.id === personId);
+    if (p) p.name = name;
+    persist();
+  }
+  function clearAll() {
+    if (!confirm("Clear all tasks, people, and assignments?")) return;
+    state = { tasks: [], people: [], cells: {} };
+    render();
+  }
+
+  // ---------- Sample ----------
+  function loadSample() {
+    state = { tasks: [], people: [], cells: {} };
+    const tasks = ["Collect supplier data", "Validate data", "Build dashboard", "Approve final report"];
+    const people = ["Procurement", "Sustainability Analyst", "Finance", "Data Analyst", "IT", "CFO", "Sustainability Lead"];
+    tasks.forEach(t => state.tasks.push({ id: id(), name: t }));
+    people.forEach(p => state.people.push({ id: id(), name: p }));
+
+    const t = state.tasks, pp = state.people;
+    const set = (ti, pi, r) => state.cells[t[ti].id + "|" + pp[pi].id] = r;
+    // Collect supplier data
+    set(0, 0, "R"); set(0, 1, "A"); set(0, 2, "I");
+    // Validate data
+    set(1, 1, "R"); set(1, 2, "C"); set(1, 6, "A");
+    // Build dashboard
+    set(2, 3, "R"); set(2, 4, "C"); set(2, 1, "A"); set(2, 6, "I");
+    // Approve final report
+    set(3, 5, "A"); set(3, 6, "R"); set(3, 1, "C"); set(3, 2, "I");
+
+    render();
+  }
+
+  // ---------- Persistence (in-memory only; localStorage avoided per environment rules) ----------
+  function persist() { /* no-op; render on demand */ }
+
+  // ---------- Rendering ----------
+  function render() {
+    renderMatrix();
+    renderAlerts();
+    renderSummary();
+  }
+
+  function renderMatrix() {
+    const tbl = document.getElementById("matrix");
+    if (state.tasks.length === 0 && state.people.length === 0) {
+      tbl.innerHTML = `
+        <thead><tr><th class="task-col">Task</th></tr></thead>
+        <tbody><tr><td class="task-col" style="color:var(--muted); padding:24px;">
+          No tasks yet. Click <strong>+ Add Task</strong> and <strong>+ Add Role / Person</strong> to get started, or <a href="#" onclick="loadSample();return false;" style="color:var(--accent);">load the sample project</a>.
+        </td></tr></tbody>`;
+      return;
+    }
+
+    let html = '<thead><tr><th class="task-col">Task</th>';
+    state.people.forEach(p => {
+      html += `<th class="person-col">
+        <div class="person-header">
+          <input class="person-input" value="${escapeAttr(p.name)}" placeholder="Role / Person" oninput="setPersonName('${p.id}', this.value)" />
+          <div class="col-controls" style="justify-content:center;">
+            <button class="ghost" title="Remove" onclick="removePerson('${p.id}')">×</button>
+          </div>
+        </div>
+      </th>`;
+    });
+    html += "</tr></thead><tbody>";
+
+    if (state.tasks.length === 0) {
+      html += `<tr><td class="task-col" colspan="${state.people.length + 1}" style="color:var(--muted); padding:18px;">Add a task to begin assigning roles.</td></tr>`;
+    }
+
+    state.tasks.forEach(t => {
+      html += `<tr><td class="task-col">
+        <div class="row-controls">
+          <input class="task-input" value="${escapeAttr(t.name)}" placeholder="Describe the task" oninput="setTaskName('${t.id}', this.value)" />
+          <button class="ghost" title="Remove" onclick="removeTask('${t.id}')">×</button>
+        </div>
+      </td>`;
+      state.people.forEach(p => {
+        const key = t.id + "|" + p.id;
+        const current = state.cells[key];
+        html += `<td class="cell"><div class="raci-picker">`;
+        ROLES.forEach(r => {
+          const active = current === r ? " active " + r.toLowerCase() : "";
+          html += `<button class="raci-btn${active}" title="${ROLE_NAMES[r]}" onclick="setCell('${t.id}','${p.id}','${r}')">${r}</button>`;
+        });
+        html += `</div></td>`;
+      });
+      html += "</tr>";
+    });
+
+    html += "</tbody>";
+    tbl.innerHTML = html;
+  }
+
+  // ---------- Validation ----------
+  function computeAlerts() {
+    const alerts = [];
+
+    if (state.tasks.length === 0 || state.people.length === 0) return alerts;
+
+    state.tasks.forEach(t => {
+      const taskName = t.name || "(unnamed task)";
+      const assignments = state.people.map(p => ({ p, role: state.cells[t.id + "|" + p.id] || null }));
+      const roleCount = { R: 0, A: 0, C: 0, I: 0 };
+      assignments.forEach(a => { if (a.role) roleCount[a.role]++; });
+
+      // Missing accountability
+      if (roleCount.A === 0) {
+        alerts.push({
+          level: "error",
+          title: `Missing Accountable: "${taskName}"`,
+          body: "Every task needs exactly one Accountable owner. Without one, decisions stall and ownership gets murky."
+        });
+      }
+      // Too many accountable
+      if (roleCount.A > 1) {
+        const aPeople = assignments.filter(a => a.role === "A").map(a => a.p.name || "(unnamed)").join(", ");
+        alerts.push({
+          level: "error",
+          title: `Multiple Accountable on "${taskName}"`,
+          body: `${roleCount.A} people marked Accountable (${aPeople}). RACI requires exactly one — split the task or downgrade extras to Responsible/Consulted.`
+        });
+      }
+      // No responsible
+      if (roleCount.R === 0) {
+        alerts.push({
+          level: "warn",
+          title: `No Responsible on "${taskName}"`,
+          body: "No one is doing the work. Assign at least one Responsible person."
+        });
+      }
+      // Role conflict: same person both A and R is allowed but flag if person has both A and C, or A and I (unusual)
+      assignments.forEach(a => {
+        // A single cell holds one role only, so per-cell conflicts can't occur. We check for unusual patterns across the row instead.
+      });
+
+      // Too many consulted (analysis paralysis)
+      if (roleCount.C > 4) {
+        alerts.push({
+          level: "warn",
+          title: `Many Consulted on "${taskName}" (${roleCount.C})`,
+          body: "More than 4 Consulted parties often slow decisions. Consider downgrading some to Informed."
+        });
+      }
+    });
+
+    // Per-person checks
+    state.people.forEach(p => {
+      const personName = p.name || "(unnamed person)";
+      const roles = state.tasks.map(t => state.cells[t.id + "|" + p.id]).filter(Boolean);
+      const aCount = roles.filter(r => r === "A").length;
+
+      // Person has no role anywhere
+      if (roles.length === 0 && state.tasks.length > 0) {
+        alerts.push({
+          level: "warn",
+          title: `${personName} has no assignments`,
+          body: "This person/role isn't on any task. Either assign them or remove the column."
+        });
+      }
+      // Person accountable on too many tasks
+      if (aCount > Math.max(2, Math.ceil(state.tasks.length / 2))) {
+        alerts.push({
+          level: "warn",
+          title: `${personName} is Accountable on ${aCount} tasks`,
+          body: "Concentrating accountability on one person creates a single point of failure. Distribute ownership across the team."
+        });
+      }
+    });
+
+    // Empty task names
+    state.tasks.forEach(t => {
+      if (!t.name.trim()) {
+        alerts.push({
+          level: "warn",
+          title: "Unnamed task",
+          body: "One of your tasks has no description. Name it so the matrix is meaningful."
+        });
+      }
+    });
+    state.people.forEach(p => {
+      if (!p.name.trim()) {
+        alerts.push({
+          level: "warn",
+          title: "Unnamed role / person",
+          body: "One of your columns has no name. Label it (e.g., 'CFO', 'Sustainability Lead')."
+        });
+      }
+    });
+
+    return alerts;
+  }
+
+  function renderAlerts() {
+    const wrap = document.getElementById("alerts");
+    const countEl = document.getElementById("alertsCount");
+    const alerts = computeAlerts();
+
+    if (state.tasks.length === 0 || state.people.length === 0) {
+      wrap.innerHTML = "";
+      countEl.textContent = "";
+      return;
+    }
+
+    if (alerts.length === 0) {
+      wrap.innerHTML = `<div class="alert ok"><span class="icon">✓</span><div class="body"><strong>Looks good.</strong>Every task has exactly one Accountable owner and no obvious governance gaps.</div></div>`;
+      countEl.textContent = "All checks passed";
+      return;
+    }
+
+    countEl.textContent = `${alerts.length} issue${alerts.length === 1 ? "" : "s"} found`;
+    const order = { error: 0, warn: 1, ok: 2 };
+    alerts.sort((a, b) => order[a.level] - order[b.level]);
+    wrap.innerHTML = alerts.map(a => `
+      <div class="alert ${a.level}">
+        <span class="icon">${a.level === "error" ? "!" : "⚠"}</span>
+        <div class="body"><strong>${escapeHtml(a.title)}</strong>${escapeHtml(a.body)}</div>
+      </div>`).join("");
+  }
+
+  // ---------- Summary ----------
+  function renderSummary() {
+    const wrap = document.getElementById("summary");
+    if (state.tasks.length === 0 && state.people.length === 0) {
+      wrap.innerHTML = `<div class="stat"><div class="label">Status</div><div class="value">—</div><div class="sub">Add tasks and people to see stats</div></div>`;
+      return;
+    }
+    const totalCells = state.tasks.length * state.people.length;
+    const filled = Object.keys(state.cells).filter(k => state.cells[k]).length;
+    const counts = { R: 0, A: 0, C: 0, I: 0 };
+    Object.values(state.cells).forEach(v => { if (counts[v] !== undefined) counts[v]++; });
+
+    const tasksWithA = state.tasks.filter(t =>
+      state.people.some(p => state.cells[t.id + "|" + p.id] === "A")
+    ).length;
+
+    wrap.innerHTML = `
+      <div class="stat"><div class="label">Tasks</div><div class="value">${state.tasks.length}</div><div class="sub">${tasksWithA} with an Accountable</div></div>
+      <div class="stat"><div class="label">People / Roles</div><div class="value">${state.people.length}</div></div>
+      <div class="stat"><div class="label">Coverage</div><div class="value">${totalCells ? Math.round(filled / totalCells * 100) : 0}%</div><div class="sub">${filled} of ${totalCells} cells filled</div></div>
+      <div class="stat"><div class="label">Responsible (R)</div><div class="value" style="color:var(--r)">${counts.R}</div></div>
+      <div class="stat"><div class="label">Accountable (A)</div><div class="value" style="color:var(--a)">${counts.A}</div></div>
+      <div class="stat"><div class="label">Consulted (C)</div><div class="value" style="color:var(--c)">${counts.C}</div></div>
+      <div class="stat"><div class="label">Informed (I)</div><div class="value" style="color:var(--i)">${counts.I}</div></div>
+    `;
+  }
+
+  // ---------- Export ----------
+  function exportCSV() {
+    if (state.tasks.length === 0 || state.people.length === 0) {
+      alert("Add some tasks and people first.");
+      return;
+    }
+    const rows = [];
+    rows.push(["Task", ...state.people.map(p => p.name || "(unnamed)")]);
+    state.tasks.forEach(t => {
+      const row = [t.name || "(unnamed)"];
+      state.people.forEach(p => {
+        row.push(state.cells[t.id + "|" + p.id] || "");
+      });
+      rows.push(row);
+    });
+    const csv = rows.map(r => r.map(csvEscape).join(",")).join("\n");
+    download("raci-matrix.csv", csv, "text/csv");
+  }
+
+  function exportJSON() {
+    if (state.tasks.length === 0 && state.people.length === 0) {
+      alert("Nothing to export yet.");
+      return;
+    }
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      tasks: state.tasks.map(t => t.name),
+      people: state.people.map(p => p.name),
+      assignments: state.tasks.map(t => ({
+        task: t.name,
+        roles: Object.fromEntries(
+          state.people
+            .map(p => [p.name, state.cells[t.id + "|" + p.id] || null])
+            .filter(([_, v]) => v !== null)
+        )
+      }))
+    };
+    download("raci-matrix.json", JSON.stringify(payload, null, 2), "application/json");
+  }
+
+  function csvEscape(v) {
+    v = String(v);
+    if (/[",\n]/.test(v)) return '"' + v.replace(/"/g, '""') + '"';
+    return v;
+  }
+  function download(filename, content, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- Helpers ----------
+  function escapeAttr(s) { return String(s || "").replace(/"/g, "&quot;").replace(/</g, "&lt;"); }
+  function escapeHtml(s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+  // ---------- Init ----------
+  loadSample();
+</script>
+</body>
+</html>
